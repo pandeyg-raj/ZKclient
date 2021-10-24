@@ -109,7 +109,7 @@ void thread_function(int i)
 
     const char* path = "/raju";
     char filename[64] = {0};
-    sprintf(filename, "results/file%d.txt",i);
+    sprintf(filename, "./results/file%d.txt",i);
     FILE* fptr = fopen(filename,"w");
     fprintf(fptr,"thread,start,end,diff,data\n");
     auto start_point = time_point_cast<milliseconds>(system_clock::now());
