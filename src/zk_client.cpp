@@ -50,7 +50,8 @@ int main (int argc, char** argv)
     int count = 0;
     
 
-    std::thread workers[10];
+    std::thread workers[NOOFTHREAD];
+
     for(int i =0;i<NOOFTHREAD;i++)
     workers[i] = std::thread(thread_function, i);
 
