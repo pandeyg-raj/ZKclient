@@ -28,8 +28,8 @@ inline int next_event(const std::string& dist_process);
 void main_watcher ( zhandle_t *zkh,int type,int state,const char *path,void* context);
 void hello(int rc,const char *value,int value_len,const struct Stat *stat, const void *data);
 void Stop();
-int my_zoo_set(zhandle_t *zh, const char *path, const char *buffer, int buflen, int version,int,FILE*);
-int my_zoo_get(zhandle_t *zh, const char *path, int watch, char *buffer,int* buffer_len, struct Stat *stat,int,FILE*);
+int my_zoo_set(zhandle_t *zh, const char *path, const char *buffer, int buflen, int version,int);
+int my_zoo_get(zhandle_t *zh, const char *path, int watch, char *buffer,int* buffer_len, struct Stat *stat,int);
 void thread_function(int );
 static int connected = 0;
 static int expired = 0;
@@ -123,7 +123,7 @@ void thread_function(int i)
     const char* path = "/raju";
     char filename[64] = {0};
     sprintf(filename, "./results/file%d.txt",i);
-    FILE* fptr = fopen(filename,"w");
+    //FILE* fptr = fopen(filename,"w");
     //fprintf(fptr,"thread,start,end,diff,data\n");
     
     auto start_point = time_point_cast<milliseconds>(system_clock::now());
@@ -134,11 +134,11 @@ void thread_function(int i)
        TOTAL[i]++;
        type = TOTAL[i]%2;
        if(type==0){
-        my_zoo_get(zk,path,0,buffer,&buflen,&stat,i,fptr); // check for exist internally
+        my_zoo_get(zk,path,0,buffer,&buflen,&stat,i); // check for exist internally
         GET_c[i]++;
        }
        else{
-         my_zoo_set(zk,path, buffer_set,buf_set_len, -1,i,fptr);
+         my_zoo_set(zk,path, buffer_set,buf_set_len, -1,i);
          SET_c[i]++;
        }
         tp += milliseconds{next_event("poisson")};
@@ -147,10 +147,10 @@ void thread_function(int i)
     //fprintf(fptr,"Thread#: %d GET#: %d  SET#: %d    TOTAL#: %d\n",i,GET_c[i],SET_c[i],TOTAL[i]);
     LOG(INFO) << "            Thread#: "<<i<<" GET#: "<<GET_c[i]<<"  SET#: "<<SET_c[i]<<"    TOTAL#: "<<TOTAL[i];
     
-    fclose(fptr);
+    //fclose(fptr);
 }
 int my_zoo_set(zhandle_t *zk, const char *path, const char *buffer,
-                   int buflen, int version,int i, FILE* fptr)
+                   int buflen, int version,int i)
 {
     struct Stat stat;
     int rc = 0;
@@ -181,7 +181,7 @@ int my_zoo_set(zhandle_t *zk, const char *path, const char *buffer,
 
 
 int my_zoo_get(zhandle_t *zk, const char *path, int watch, char *buffer,
-                   int* buflen, struct Stat *stat,int i,FILE* fptr)
+                   int* buflen, struct Stat *stat,int i)
 {
      int rc =0;
         auto m_Start = time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
