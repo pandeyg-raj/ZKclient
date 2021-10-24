@@ -145,7 +145,7 @@ void thread_function(int i)
         std::this_thread::sleep_until(tp);
     }
     //fprintf(fptr,"Thread#: %d GET#: %d  SET#: %d    TOTAL#: %d\n",i,GET_c[i],SET_c[i],TOTAL[i]);
-    LOG(INFO) << "            Thread#: "<<i<<" GET#: "<<GET_c[i]<<"  SET#: "<<SET_c[i]<<"    TOTAL#: "<<TOTAL[i];
+    //LOG(INFO) << "            Thread#: "<<i<<" GET#: "<<GET_c[i]<<"  SET#: "<<SET_c[i]<<"    TOTAL#: "<<TOTAL[i];
     
     //fclose(fptr);
 }
