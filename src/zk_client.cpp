@@ -1,4 +1,7 @@
 #include "../include/zookeeper.h"
+#include "../include/g2logworker.h"
+#include "../include/g2log.h"
+#include <iomanip>
 #include <errno.h>
 #include <string.h>
 #include <chrono>
@@ -11,7 +14,6 @@ using std::endl;
 
 static int NOOFTHREAD = 10 ;
 static int experiment_time = 60;
-static double checkdURATION[256] = {0};
 static double durations[256] = {0.0};
 static double getdurations[256] = {0.0};
 static double setdurations[256] = {0.0};
@@ -43,6 +45,9 @@ int main (int argc, char** argv)
         cout<<"usage: ./a.out {time} {#thread}"<<endl;
         return -1;
     }
+    g2LogWorker g2log(argv[0], "./");
+    g2::initializeLogging(&g2log);
+    
     experiment_time = atoi(argv[1]);
     NOOFTHREAD = atoi(argv[2]);
     zk =  zookeeper_init("34.94.181.64:2181",main_watcher,15000, 0,0,0);
@@ -57,9 +62,9 @@ int main (int argc, char** argv)
     }
     int count = 0;
     
+    LOG(INFO) <<"            thread,start,end,diff,data";
 
     std::thread workers[NOOFTHREAD];
-
     for(int i =0;i<NOOFTHREAD;i++)
     workers[i] = std::thread(thread_function, i);
 
@@ -68,7 +73,7 @@ int main (int argc, char** argv)
 
     zookeeper_close(zk);
     int totalGet = 0,totalSet = 0 ,total = 0;
-    double checkRaj= 0.0,totalLatency = 0.0,getLatency = 0.0,setLatency = 0.0;
+    double totalLatency = 0.0,getLatency = 0.0,setLatency = 0.0;
     for(int i =0;i<NOOFTHREAD;i++)
     {
         durations[i] = getdurations[i] +  setdurations[i];
@@ -80,16 +85,24 @@ int main (int argc, char** argv)
         
         getLatency += getdurations[i];
         setLatency += setdurations[i];
-        totalLatency += checkdURATION[i];
-        checkRaj +=  durations[i];
+        totalLatency += durations[i];
     }
+
+    LOG(INFO)<<"    TIME of Experiment "<<experiment_time;
+    LOG(INFO)<<"    THREAD: "<<NOOFTHREAD;
+    LOG(INFO)<<"    TOTAL: "<<total<<" GET: "<<totalGet<<" SET: "<<totalSet;
+    LOG(INFO)<<"    Read Ratio: "<<((float)totalGet/total)*100;
+    LOG(INFO)<<"    rate: "<<(float)total/experiment_time;
+    LOG(INFO)<<"    avg latency (total)(ms) "<< (totalLatency*0.001)/total;
+    LOG(INFO)<<"    avg GET latency (ms) "<< (getLatency*0.001)/totalGet;
+    LOG(INFO)<<"    avg SET latency (ms) "<< (setLatency*0.001)/totalSet;
+    
 
     cout<<"TIME of Experiment "<<experiment_time<<endl<<"THREAD: "<<NOOFTHREAD<<endl;
     cout<<"TOTAL: "<<total<<" GET: "<<totalGet<<" SET: "<<totalSet<<endl;
     cout<<"Read Ratio: "<<((float)totalGet/total)*100<<endl;
     cout<<"rate: "<<(float)total/experiment_time<<endl;
-    //cout<<"avg latency (total)(ms) "<< (totalLatency*0.001)/total<<endl;
-    //cout<<"avg checkRaj (total)(ms) "<< (checkRaj*0.001)/total<<endl;
+    cout<<"avg latency (total)(ms) "<< (totalLatency*0.001)/total<<endl;
     cout<<"avg GET latency (ms) "<< (getLatency*0.001)/totalGet<<endl;
     cout<<"avg SET latency (ms) "<< (setLatency*0.001)/totalSet<<endl;
     return 0;
@@ -111,7 +124,8 @@ void thread_function(int i)
     char filename[64] = {0};
     sprintf(filename, "./results/file%d.txt",i);
     FILE* fptr = fopen(filename,"w");
-    fprintf(fptr,"thread,start,end,diff,data\n");
+    //fprintf(fptr,"thread,start,end,diff,data\n");
+    
     auto start_point = time_point_cast<milliseconds>(system_clock::now());
     auto end_point = start_point + seconds(experiment_time);
     time_point <system_clock, milliseconds> tp = time_point_cast<milliseconds>(system_clock::now());
@@ -130,7 +144,9 @@ void thread_function(int i)
         tp += milliseconds{next_event("poisson")};
         std::this_thread::sleep_until(tp);
     }
-    fprintf(fptr,"Thread#: %d GET#: %d  SET#: %d    TOTAL#: %d\n",i,GET_c[i],SET_c[i],TOTAL[i]);
+    //fprintf(fptr,"Thread#: %d GET#: %d  SET#: %d    TOTAL#: %d\n",i,GET_c[i],SET_c[i],TOTAL[i]);
+    LOG(INFO) << "            Thread#: "<<i<<" GET#: "<<GET_c[i]<<"  SET#: "<<SET_c[i]<<"    TOTAL#: "<<TOTAL[i];
+    
     fclose(fptr);
 }
 int my_zoo_set(zhandle_t *zk, const char *path, const char *buffer,
@@ -143,19 +159,20 @@ int my_zoo_set(zhandle_t *zk, const char *path, const char *buffer,
     if ( zoo_exists(zk, path, 0, &stat) == 0) { // node exist setting value
      rc =  zoo_set(zk,path,buffer,buflen,version); // check for exist internally
         if(rc!=0) 
-            fprintf(fptr,"my_zoo_set error   %d \n",rc);
+            printf("my_zoo_set error   %d \n",rc);
     }
     else {
-        fprintf (fptr,"node does not exist, creating and setting \n ");
+        printf ("node does not exist, creating and setting \n ");
         rc= zoo_create(zk,path,buffer, buflen, &ZOO_OPEN_ACL_UNSAFE, ZOO_PERSISTENT, NULL, 0);
         if(rc!=0) 
-            fprintf(fptr,"my_zoo_create error   %d \n",rc);
+            printf("my_zoo_create error   %d \n",rc);
     }
     auto m_End = time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
     setdurations[i]+= m_End-m_Start;
-    checkdURATION[i]+= m_End-m_Start;
     //fprintf(fptr,"SET: No error thread# %d,   start: %ld,   end: %ld,   diff: %ld, data%s\n",i,m_Start,m_End,m_End-m_Start,buffer);
-      fprintf(fptr,"SET#%d,%ld,%ld,%ld,%s\n",i,m_Start,m_End,m_End-m_Start,buffer);  
+      //LOG(INFO) <<" SET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;  
+      LOG(INFO) <<"            SET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;  
+      
     return rc;
 }
 
@@ -174,11 +191,12 @@ int my_zoo_get(zhandle_t *zk, const char *path, int watch, char *buffer,
         {
             //fprintf(fptr,"GET: No error thread# %d,   start: %ld,   end: %ld,   diff: %ld, data%s\n",i,m_Start,m_End,m_End-m_Start,buffer);
             getdurations[i]+= m_End-m_Start;
-            checkdURATION[i]+= m_End-m_Start;
-            fprintf(fptr,"GET#%d,%ld,%ld,%ld,%s\n",i,m_Start,m_End,m_End-m_Start,buffer); 
+            //fprintf(fptr,"GET#%d,%ld,%ld,%ld,%s\n",i,m_Start,m_End,m_End-m_Start,buffer); 
+            LOG(INFO) <<"            GET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;
+          
         }
         else 
-            fprintf(fptr,"my_zoo_get error   %d \n",rc);
+            printf("my_zoo_get error   %d \n",rc);
         return rc;
 }
 
