@@ -31,6 +31,8 @@ void Stop();
 int my_zoo_set(zhandle_t *zh, const char *path, const char *buffer, int buflen, int version,int);
 int my_zoo_get(zhandle_t *zh, const char *path, int watch, char *buffer,int* buffer_len, struct Stat *stat,int);
 void thread_function(int );
+double get_random_real_number_uniform(double min, double max, int seed = std::chrono::system_clock::now().time_since_epoch().count());
+
 static int connected = 0;
 static int expired = 0;
 
@@ -74,6 +76,7 @@ int main (int argc, char** argv)
     zookeeper_close(zk);
     int totalGet = 0,totalSet = 0 ,total = 0;
     double totalLatency = 0.0,getLatency = 0.0,setLatency = 0.0;
+   
     for(int i =0;i<NOOFTHREAD;i++)
     {
         durations[i] = getdurations[i] +  setdurations[i];
@@ -130,14 +133,17 @@ void thread_function(int i)
     auto end_point = start_point + seconds(experiment_time);
     time_point <system_clock, milliseconds> tp = time_point_cast<milliseconds>(system_clock::now());
     int type;
+    double read_ratio = 0.032;
     while(system_clock::now() < end_point ){
        TOTAL[i]++;
-       type = TOTAL[i]%2;
-       if(type==0){
+       double random_ratio = get_random_real_number_uniform(0,1); 
+       type = random_ratio < read_ratio ? 1 : 0;
+       //type = TOTAL[i]%2;
+       if(type==1){
         my_zoo_get(zk,path,0,buffer,&buflen,&stat,i); // check for exist internally
         GET_c[i]++;
        }
-       else{
+       else {
          my_zoo_set(zk,path, buffer_set,buf_set_len, -1,i);
          SET_c[i]++;
        }
@@ -251,4 +257,17 @@ inline int next_event(const std::string& dist_process){
         throw std::logic_error("Distribution process specified is unknown !! ");
     }
     return 0;
+}
+
+double get_random_real_number_uniform(double min, double max, int seed){
+    static bool seed_set = false;
+    static std::default_random_engine generator;
+    if(!seed_set){
+        generator = std::default_random_engine(seed);
+        seed_set = true;
+    }
+
+    std::uniform_real_distribution<double> distribution(min, max);
+
+    return distribution(generator);
 }
