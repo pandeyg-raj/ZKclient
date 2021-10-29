@@ -30,7 +30,7 @@ void hello(int rc,const char *value,int value_len,const struct Stat *stat, const
 void Stop();
 int my_zoo_set(zhandle_t *zh, const char *path, const char *buffer, int buflen, int version,int);
 int my_zoo_get(zhandle_t *zh, const char *path, int watch, char *buffer,int* buffer_len, struct Stat *stat,int);
-void thread_function(int );
+void thread_function(int,double read_ratio );
 double get_random_real_number_uniform(double min, double max, int seed = std::chrono::system_clock::now().time_since_epoch().count());
 
 static int connected = 0;
@@ -43,15 +43,18 @@ static int TOTAL[256] = {0};
 zhandle_t * zk = 0;
 int main (int argc, char** argv)
 {
-    if(argc!=3){
-        cout<<"usage: ./a.out {time} {#thread}"<<endl;
+    if(argc!=4){
+        cout<<"usage: ./a.out {time} {#thread} {read ration}"<<endl;
         return -1;
     }
+    
     g2LogWorker g2log(argv[0], "./");
     g2::initializeLogging(&g2log);
     
     experiment_time = atoi(argv[1]);
     NOOFTHREAD = atoi(argv[2]);
+    double read_ratio = atof(argv[3]);
+
     zk =  zookeeper_init("34.94.181.64:2181",main_watcher,15000, 0,0,0);
     if(!zk) {
         printf("\n\nzk null\n\n");
@@ -68,7 +71,7 @@ int main (int argc, char** argv)
 
     std::thread workers[NOOFTHREAD];
     for(int i =0;i<NOOFTHREAD;i++)
-    workers[i] = std::thread(thread_function, i);
+    workers[i] = std::thread(thread_function, i, read_ratio);
 
     for(int i =0;i<NOOFTHREAD;i++)
     workers[i].join();
@@ -91,19 +94,19 @@ int main (int argc, char** argv)
         totalLatency += durations[i];
     }
 
-    LOG(INFO)<<"    TIME of Experiment "<<experiment_time;
-    LOG(INFO)<<"    THREAD: "<<NOOFTHREAD;
-    LOG(INFO)<<"    TOTAL: "<<total<<" GET: "<<totalGet<<" SET: "<<totalSet;
-    LOG(INFO)<<"    Read Ratio: "<<((float)totalGet/total)*100;
-    LOG(INFO)<<"    rate: "<<(float)total/experiment_time;
-    LOG(INFO)<<"    avg latency (total)(ms) "<< (totalLatency*0.001)/total;
-    LOG(INFO)<<"    avg GET latency (ms) "<< (getLatency*0.001)/totalGet;
-    LOG(INFO)<<"    avg SET latency (ms) "<< (setLatency*0.001)/totalSet;
+    LOG(INFO)<<",,    TIME of Experiment "<<experiment_time;
+    LOG(INFO)<<",,    THREAD: "<<NOOFTHREAD;
+    LOG(INFO)<<",,    TOTAL: "<<total<<" GET: "<<totalGet<<" SET: "<<totalSet;
+    LOG(INFO)<<",,    Read Ratio: "<<((float)totalGet/total)*100;
+    LOG(INFO)<<",,    rate: "<<(float)total/experiment_time;
+    LOG(INFO)<<",,    avg latency (total)(ms) "<< (totalLatency*0.001)/total;
+    LOG(INFO)<<",,    avg GET latency (ms) "<< (getLatency*0.001)/totalGet;
+    LOG(INFO)<<",,    avg SET latency (ms) "<< (setLatency*0.001)/totalSet;
     
 
     cout<<"TIME of Experiment "<<experiment_time<<endl<<"THREAD: "<<NOOFTHREAD<<endl;
     cout<<"TOTAL: "<<total<<" GET: "<<totalGet<<" SET: "<<totalSet<<endl;
-    cout<<"Read Ratio: "<<((float)totalGet/total)*100<<endl;
+    cout<<"Read Ratio: "<<((float)totalGet/total)*100<<" ("<<read_ratio<<")"<<endl;
     cout<<"rate: "<<(float)total/experiment_time<<endl;
     cout<<"avg latency (total)(ms) "<< (totalLatency*0.001)/total<<endl;
     cout<<"avg GET latency (ms) "<< (getLatency*0.001)/totalGet<<endl;
@@ -111,7 +114,7 @@ int main (int argc, char** argv)
     return 0;
 }
 
-void thread_function(int i)
+void thread_function(int i,double read_ratio)
 {
     TOTAL[i] = 0;
     GET_c[i] = 0;
@@ -133,7 +136,6 @@ void thread_function(int i)
     auto end_point = start_point + seconds(experiment_time);
     time_point <system_clock, milliseconds> tp = time_point_cast<milliseconds>(system_clock::now());
     int type;
-    double read_ratio = 0.032;
     while(system_clock::now() < end_point ){
        TOTAL[i]++;
        double random_ratio = get_random_real_number_uniform(0,1); 
@@ -177,7 +179,7 @@ int my_zoo_set(zhandle_t *zk, const char *path, const char *buffer,
     setdurations[i]+= m_End-m_Start;
     //fprintf(fptr,"SET: No error thread# %d,   start: %ld,   end: %ld,   diff: %ld, data%s\n",i,m_Start,m_End,m_End-m_Start,buffer);
       //LOG(INFO) <<" SET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;  
-      LOG(INFO) <<"            SET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;  
+      LOG(INFO) <<",            SET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;  
       
     return rc;
 }
@@ -198,7 +200,7 @@ int my_zoo_get(zhandle_t *zk, const char *path, int watch, char *buffer,
             //fprintf(fptr,"GET: No error thread# %d,   start: %ld,   end: %ld,   diff: %ld, data%s\n",i,m_Start,m_End,m_End-m_Start,buffer);
             getdurations[i]+= m_End-m_Start;
             //fprintf(fptr,"GET#%d,%ld,%ld,%ld,%s\n",i,m_Start,m_End,m_End-m_Start,buffer); 
-            LOG(INFO) <<"            GET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;
+            LOG(INFO) <<",            GET#"<<i<<","<<m_Start<<","<<m_End<<","<<m_End-m_Start<<","<<buffer;
           
         }
         else 
