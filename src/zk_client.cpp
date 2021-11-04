@@ -14,9 +14,9 @@ using std::endl;
 
 static int NOOFTHREAD = 10 ;
 static int experiment_time = 60;
-static double durations[256] = {0.0};
-static double getdurations[256] = {0.0};
-static double setdurations[256] = {0.0};
+static double durations[1024] = {0.0};
+static double getdurations[1024] = {0.0};
+static double setdurations[1024] = {0.0};
 extern "C"{
 
 ZOOAPI int zoo_get(zhandle_t *zh, const char *path, int watch, char *buffer, int* buffer_len, struct Stat *stat);
@@ -36,9 +36,9 @@ double get_random_real_number_uniform(double min, double max, int seed = std::ch
 static int connected = 0;
 static int expired = 0;
 
-static int GET_c[256] = {0};
-static int SET_c[256] = {0};
-static int TOTAL[256] = {0};
+static int GET_c[1024] = {0};
+static int SET_c[1024] = {0};
+static int TOTAL[1024] = {0};
 
 zhandle_t * zk = 0;
 int main (int argc, char** argv)
@@ -55,7 +55,7 @@ int main (int argc, char** argv)
     NOOFTHREAD = atoi(argv[2]);
     double read_ratio = atof(argv[3]);
 
-    zk =  zookeeper_init("34.94.181.64:2181",main_watcher,15000, 0,0,0);
+    zk =  zookeeper_init("34.141.40.177:2181",main_watcher,15000, 0,0,0);
     if(!zk) {
         printf("\n\nzk null\n\n");
     }
